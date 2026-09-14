@@ -285,6 +285,7 @@ itemsDiv.innerHTML += `
     <button class="pm" onclick="plus(${i})">＋</button>
   </div>
 </div>`;
+});
 document.getElementById("sales").textContent="¥"+sales.toLocaleString();
 document.getElementById("sold").textContent=sold+"個";
 renderHistory();
@@ -476,7 +477,7 @@ window.exportInventory = ()=>{
 
     const a=document.createElement("a");
     a.href=url;
-    a.download="aoimori_inventory_backup.json";
+    a.download="igr_inventory_backup.json";
     a.click();
 
     URL.revokeObjectURL(url);
