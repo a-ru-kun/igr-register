@@ -181,6 +181,7 @@ let cart=[];
 let historyLog=[];
 let lastSale=null;
 let syncing=false;
+let firebaseReady=false;
 
 const productSelect=document.getElementById("productSelect");
 const cartView=document.getElementById("cartView");
@@ -205,32 +206,47 @@ await setDoc(inventoryRef,{
 }
 
 async function firstLoad(){
-const snap=await getDoc(inventoryRef);
-if(snap.exists()){
-const data=snap.data();
-if(data.stocks){
-data.stocks.forEach((s,i)=>{
-  if(products[i]) products[i].stock=s;
-});
-}
-historyLog=data.history||[];
-}else{
-await setDoc(inventoryRef,{
-stocks:products.map(p=>p.stock),
-history:[],
-updatedAt:serverTimestamp()
-});
+try {
+  const snap=await getDoc(inventoryRef);
+  if(snap.exists()){
+    const data=snap.data();
+    console.log("Firebase data loaded:", data);
+    if(data.stocks && Array.isArray(data.stocks)){
+      data.stocks.forEach((s,i)=>{
+        if(products[i]) products[i].stock=s;
+      });
+    }
+    historyLog=data.history||[];
+  }else{
+    console.log("No existing data in Firestore, creating...");
+    await setDoc(inventoryRef,{
+      stocks:products.map(p=>p.stock),
+      history:[],
+      updatedAt:serverTimestamp()
+    });
+  }
+} catch (error) {
+  console.error("Error loading from Firestore:", error);
+  syncStatus.textContent="⚠️ Firebase読み込みエラー";
+  syncStatus.style.color="orange";
 }
 draw();
 renderCart();
 }
 
+// リアルタイムリスナーの設定
 onSnapshot(inventoryRef,(snap)=>{
-if(!snap.exists()) return;
+if(!snap.exists()) {
+  console.log("No snapshot data available");
+  return;
+}
 syncing=true;
 const data=snap.data();
-if(data.stocks){
-data.stocks.forEach((s,i)=>products[i].stock=s);
+console.log("Real-time update received:", data);
+if(data.stocks && Array.isArray(data.stocks)){
+  data.stocks.forEach((s,i)=>{
+    if(products[i]) products[i].stock=s;
+  });
 }
 historyLog=data.history||[];
 draw();
@@ -238,6 +254,11 @@ renderCart();
 syncStatus.textContent="🟢 リアルタイム同期中";
 syncStatus.style.color="green";
 syncing=false;
+firebaseReady=true;
+},(error)=>{
+  console.error("Firestore listener error:", error);
+  syncStatus.textContent="🔴 Firebase同期エラー";
+  syncStatus.style.color="red";
 });
 
 function renderHistory(){
@@ -309,7 +330,7 @@ return cart.reduce((sum,c)=>sum+c.price*c.qty,0);
 function renderCart(){
 let html="";
 cart.forEach((c,index)=>{
-html+=`<div class="cartrow"><span>${c.name} × ${c.qty}</span><span>¥${(c.qty*c.price).toLocaleString()}</span></div>`;
+html+=`<div class="cartrow"><span>${c.name} × ${c.qty}</span><span>¥${(c.qty*c.price).toLocaleString()} <button onclick="removeCartItem(${index})">削除</button></span></div>`;
 });
 cartView.innerHTML=html;
 document.getElementById("total").textContent="¥"+totalPrice().toLocaleString();
@@ -440,32 +461,6 @@ window.clearCart = ()=>{
 window.removeCartItem = (index)=>{
     cart.splice(index,1);
     renderCart();
-};
-
-const oldRenderCart = renderCart;
-
-renderCart = ()=>{
-
-    let html="";
-
-    cart.forEach((c,index)=>{
-        html += `
-        <div class="cartrow">
-            <span>${c.name} × ${c.qty}</span>
-            <span>
-                ¥${(c.qty*c.price).toLocaleString()}
-                <button onclick="removeCartItem(${index})">削除</button>
-            </span>
-        </div>`;
-    });
-
-    cartView.innerHTML = html;
-
-    document.getElementById("total").textContent =
-        "¥"+totalPrice().toLocaleString();
-
-    calcChange();
-
 };
 
 window.exportInventory = ()=>{
