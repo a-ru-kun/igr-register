@@ -261,19 +261,22 @@ products.forEach((p,i)=>{
 const soldQty=p.initial-p.stock;
 sales+=soldQty*p.price;
 sold+=soldQty;
-itemsDiv.innerHTML+=`
+itemsDiv.innerHTML += `
 <div class="item">
-<div>
-<b>${p.name}</b><br>
-¥${p.price}
-</div>
-<div class="controls">
-<button class="pm" onclick="minus(${i})">−</button>
-<input value="${p.stock}" style="width:60px" onchange="setStock(${i},this.value)">
-<button class="pm" onclick="plus(${i})">＋</button>
-</div>
+  <div>
+    <b>${p.name}</b><br>
+    ¥${p.price}
+  </div>
+
+  <div class="controls">
+    <button class="pm" onclick="minus(${i})">−</button>
+    <input
+      value="${p.stock}"
+      style="width:60px"
+      onchange="setStock(${i},this.value)">
+    <button class="pm" onclick="plus(${i})">＋</button>
+  </div>
 </div>`;
-});
 document.getElementById("sales").textContent="¥"+sales.toLocaleString();
 document.getElementById("sold").textContent=sold+"個";
 renderHistory();
