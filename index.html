@@ -212,12 +212,20 @@ async function firstLoad(){
 const snap=await getDoc(inventoryRef);
 if(snap.exists()){
 const data=snap.data();
-if(data.stocks){
-data.stocks.forEach((s,i)=>{
-  if(products[i]) products[i].stock=s;
-});
+if (data.stocks && data.stocks.length > 0) {
+  data.stocks.forEach((s, i) => {
+    if (products[i]) products[i].stock = s;
+  });
+} else {
+  // stocks が空なら初期在庫を書き込む
+  await setDoc(inventoryRef, {
+    stocks: products.map(p => p.stock),
+    history: data.history || [],
+    updatedAt: serverTimestamp()
+  }, { merge: true });
 }
-historyLog=data.history||[];
+
+historyLog = data.history || [];
 }else{
 await setDoc(inventoryRef,{
 stocks:products.map(p=>p.stock),
