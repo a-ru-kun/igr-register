@@ -1,53 +1,532 @@
-<!DOCTYPE html><html lang='ja'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>青い森鉄道 在庫管理+レジ 完全版</title><style>body{font-family:sans-serif;background:#eef5ff;padding:20px}.container{max-width:900px;margin:auto}.card,.item{background:#fff;border-radius:12px}.card{padding:15px;margin-bottom:12px}.item{display:flex;justify-content:space-between;align-items:center;padding:10px;margin-top:8px}.controls{display:flex;align-items:center;gap:6px}.pm{width:32px;height:32px}.cartrow{display:flex;justify-content:space-between}.money button{margin:2px}.totalbox,.changebox{text-align:center;font-weight:bold;margin:12px 0}.totalbox span{display:block;font-size:42px;color:#06c;border-bottom:4px solid #06c}.changebox span{display:block;font-size:42px;color:#d60000;border-bottom:4px solid #d60000}.history{max-height:220px;overflow:auto}</style></head><body><div class='container'><div class='card'><h2>🚆 青い森鉄道 物販在庫管理+レジ</h2></div><div class='card'><h3>レジ</h3><select id='productSelect'></select><input id='qty' type='number' value='1' min='1'><button onclick='addCart()'>追加</button><div id='cartView'></div><div class='totalbox'>合計<span id='total'>¥0</span></div><div class='money'><button onclick='addPaid(10)'>10円</button><button onclick='addPaid(100)'>100円</button><button onclick='addPaid(500)'>500円</button><button onclick='addPaid(1000)'>1000円</button><button onclick='addPaid(2000)'>2000円</button><button onclick='addPaid(5000)'>5000円</button><button onclick='addPaid(10000)'>10000円</button><button onclick='setTotalToPaid()'>全額</button></div><input id='paid' type='number' placeholder='お預かり金額' oninput='calcChange()'><div class='changebox'>おつり<span id='change'>¥0</span></div><button onclick='checkout()'>会計完了</button><button onclick='undoLastCheckout()'>最後の会計取り消し</button></div><div class='card'>売上: <span id='sales'>¥0</span> | 販売数: <span id='sold'>0個</span></div><div class='card'><h3>会計履歴</h3><div id='history' class='history'></div></div><div id='items'></div><button onclick='resetAll()'>在庫リセット</button></div><script>const products=[["青い森クリアファイル",270,150],["モーリークリアファイル",270,150],["オリジナルボールペン",290,150],["703系ラバーキーホルダー",800,60],["701系ピンズバッジ",350,60],["703系ピンズバッジ",350,60],["モーリーピンズバッジ",350,60],["青い森鉄道オリジナルバッグ",300,150],["モーリーオリジナルシール",400,60],["青い森701系巾着袋",600,40],["寝そべりモーリーぬいぐるみ",1760,10],["すやすやモーリーぬいぐるみ",1760,10],["モーリーラバーコースター",500,100]].map(([n,p,s])=>({name:n,price:p,stock:s,initial:s}));let cart=[],lastSale=null;let historyLog=[];async function save(){ await window.syncFirestore(products, historyLog); }function fill(){products.forEach((p,i)=>productSelect.innerHTML+=`<option value='${i}'>${p.name} ¥${p.price}</option>`)}function renderHistory(){const historyDiv=document.getElementById('history');if(!historyDiv)return;historyDiv.innerHTML=historyLog.map(h=>`<div>${h.time} ${h.text}</div>`).join('')}function draw(){let salesAmt=0,soldCnt=0;items.innerHTML='';products.forEach((p,i)=>{const sc=p.initial-p.stock;salesAmt+=sc*p.price;soldCnt+=sc;items.innerHTML+=`<div class='item'><div><b>${p.name}</b><br>¥${p.price}</div><div class='controls'><button class='pm' onclick='minus(${i})'>-</button><input value='${p.stock}' onchange='setStock(${i},this.value)' style='width:60px'><button class='pm' onclick='plus(${i})'>+</button></div></div>`});sales.textContent='¥'+salesAmt.toLocaleString();sold.textContent=soldCnt+'個';renderHistory();save()}function plus(i){products[i].stock++;draw()}function minus(i){if(products[i].stock>0)products[i].stock--;draw()}function setStock(i,v){products[i].stock=Math.max(0,Number(v)||0);draw()}function addCart(){const i=+productSelect.value,q=Math.max(1,+qty.value||1),p=products[i];cart.push({i,q,name:p.name,price:p.price});renderCart()}function getTotal(){return cart.reduce((a,c)=>a+c.q*c.price,0)}function renderCart(){let t=0;cartView.innerHTML=cart.map(c=>{t+=c.q*c.price;return `<div class='cartrow'><span>${c.name}×${c.q}</span><span>¥${(c.q*c.price).toLocaleString()}</span></div>`}).join('');total.textContent='¥'+t.toLocaleString();calcChange()}function addPaid(v){paid.value=(+paid.value||0)+v;calcChange()}function setTotalToPaid(){paid.value=getTotal();calcChange()}function calcChange(){change.textContent='¥'+(((+paid.value||0)-getTotal()).toLocaleString())}function checkout(){const total=getTotal();lastSale=JSON.parse(JSON.stringify(cart));historyLog.unshift({time:new Date().toLocaleString(),text:'会計 ¥'+total.toLocaleString()});save();renderHistory();cart.forEach(c=>products[c.i].stock=Math.max(0,products[c.i].stock-c.q));cart=[];paid.value='';draw();renderCart();}function undoLastCheckout(){if(!lastSale)return alert('取り消せる会計がありません');lastSale.forEach(c=>products[c.i].stock+=c.q);historyLog.unshift({time:new Date().toLocaleString(),text:'会計取消'});save();renderHistory();lastSale=null;draw()}function resetAll(){products.forEach(p=>p.stock=p.initial);historyLog=[];localStorage.removeItem('aoimori_stock');localStorage.removeItem('aoimori_history');draw()}fill(); await window.loadFirestore(products); draw(); renderCart(); window.startRealtime(products, draw);</script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>青い森鉄道 在庫管理＋レジ（Firebase版）</title>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyApKg0j7iIBPEaWSLy8v0WApw6ivs6oVq0",
-  authDomain: "aoimori.firebaseapp.com",
-  projectId: "aoimori",
-  storageBucket: "aoimori.firebasestorage.app",
-  messagingSenderId: "305338297712",
-  appId: "1:305338297712:web:239737834d625c6335b3b5",
-  measurementId: "G-NEKXZ89X05"
+<style>
+body{
+    font-family:sans-serif;
+    background:#eef5ff;
+    padding:20px;
+    margin:0;
+}
+.container{max-width:900px;margin:auto;}
+.card{
+    background:#fff;
+    border-radius:12px;
+    padding:15px;
+    margin-bottom:12px;
+}
+.item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background:#fff;
+    border-radius:12px;
+    padding:10px;
+    margin-top:8px;
+}
+.controls{
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+.pm{width:34px;height:34px;font-size:18px;}
+.cartrow{display:flex;justify-content:space-between;margin:4px 0;}
+.money button{margin:3px;padding:8px 10px;}
+.totalbox,.changebox{
+    text-align:center;
+    margin:12px 0;
+    font-weight:bold;
+}
+.totalbox span{
+    display:block;
+    font-size:42px;
+    color:#0066cc;
+    border-bottom:4px solid #0066cc;
+}
+.changebox span{
+    display:block;
+    font-size:42px;
+    color:#d60000;
+    border-bottom:4px solid #d60000;
+}
+.history{
+    max-height:240px;
+    overflow:auto;
+}
+button{
+    border:none;
+    border-radius:8px;
+    padding:8px 14px;
+    background:#0b72ff;
+    color:white;
+}
+button:hover{opacity:0.9;}
+input,select{
+    padding:8px;
+    border-radius:8px;
+    border:1px solid #ccc;
+}
+.small{font-size:13px;color:#666;}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="card">
+<h2>🌌 IGRいわて銀河鉄道 物販在庫管理＋レジ</h2>
+<div class="small" id="syncStatus">Firebase接続中...</div>
+</div>
+
+<div class="card">
+<h3>レジ</h3>
+<select id="productSelect"></select>
+<input id="qty" type="number" value="1" min="1">
+<button onclick="addCart()">追加</button>
+
+<div id="cartView"></div>
+
+<div class="totalbox">
+合計
+<span id="total">¥0</span>
+</div>
+
+<div class="money">
+<button onclick="addPaid(10)">10円</button>
+<button onclick="addPaid(100)">100円</button>
+<button onclick="addPaid(500)">500円</button>
+<button onclick="addPaid(1000)">1000円</button>
+<button onclick="addPaid(2000)">2000円</button>
+<button onclick="addPaid(5000)">5000円</button>
+<button onclick="addPaid(10000)">10000円</button>
+<button onclick="setTotalToPaid()">全額</button>
+</div>
+
+<input id="paid" type="number" placeholder="お預かり金額" oninput="calcChange()">
+
+<div class="changebox">
+おつり
+<span id="change">¥0</span>
+</div>
+
+<button onclick="checkout()">会計完了</button>
+<button onclick="undoLastCheckout()">最後の会計取消</button>
+</div>
+
+<div class="card">
+売上：<span id="sales">¥0</span>
+｜販売数：<span id="sold">0個</span>
+</div>
+
+<div class="card">
+<h3>会計履歴</h3>
+<div id="history" class="history"></div>
+</div>
+
+<div id="items"></div>
+
+<div class="card">
+<button onclick="resetAll()">在庫リセット</button>
+</div>
+
+</div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+
+import {
+getFirestore,
+doc,
+getDoc,
+setDoc,
+updateDoc,
+onSnapshot,
+serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+
+const firebaseConfig={
+apiKey:"AIzaSyApKg0j7iIBPEaWSLy8v0WApw6ivs6oVq0",
+authDomain:"aoimori.firebaseapp.com",
+projectId:"aoimori",
+storageBucket:"aoimori.firebasestorage.app",
+messagingSenderId:"305338297712",
+appId:"1:305338297712:web:239737834d625c6335b3b5",
+measurementId:"G-NEKXZ89X05"
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const ref = doc(db, "aoimori", "inventory");
+const app=initializeApp(firebaseConfig);
+const db=getFirestore(app);
+const inventoryRef = doc(db, "igr", "inventory");
+  
+const DEFAULT_PRODUCTS = [
+  ["クリアファイル「三セク鉄道物語」", 400, 150],
+  ["星と電車のクリアファイル", 300, 150],
+  ["車籍銘板キーホルダー", 1200, 30],
+  ["鉄印キーホルダー", 550, 60],
+  ["駅の本革しおり（全17種）(在庫注意)", 720, 68],
+  ["ツバメノート（全2種）(在庫注意)", 480, 60],
+  ["IGR7000系ラバーキーホルダー", 800, 70],
+  ["☆ぎんきら☆ぬってMyバッグ", 400, 60],
+  ["☆ぎんきら☆てのひらマスコットセット", 2200, 10]
+].map(([name, price, stock]) => ({
+  name,
+  price,
+  stock,
+  initial: stock
+}));
 
-window.syncFirestore = async function(products, historyLog){
-  await setDoc(ref,{
-    stocks: products.map(p=>p.stock),
-    history: historyLog,
-    updatedAt: serverTimestamp()
-  },{merge:true});
+let products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+let cart=[];
+let historyLog=[];
+let lastSale=null;
+let syncing=false;
+
+const productSelect=document.getElementById("productSelect");
+const cartView=document.getElementById("cartView");
+const historyDiv=document.getElementById("history");
+const itemsDiv=document.getElementById("items");
+const syncStatus=document.getElementById("syncStatus");
+
+function fillProducts(){
+productSelect.innerHTML="";
+products.forEach((p,i)=>{
+productSelect.innerHTML+=`<option value="${i}">${p.name} ¥${p.price}</option>`;
+});
 }
 
-window.loadFirestore = async function(products){
-  const snap = await getDoc(ref);
-  if(snap.exists()){
-    const d=snap.data();
-    if(d.stocks){
-      d.stocks.forEach((s,i)=>{ if(products[i]!=null) products[i].stock=s;});
-    }
-    window.historyLog = d.history || [];
-  }else{
-    await window.syncFirestore(products, []);
-  }
+async function saveFirestore(){
+if(syncing) return;
+await setDoc(inventoryRef,{
+  stocks:products.map(p=>p.stock),
+  history:historyLog,
+  updatedAt:serverTimestamp()
+},{merge:true});
 }
 
-window.startRealtime = function(products, draw){
-  onSnapshot(ref,(snap)=>{
-    if(!snap.exists()) return;
-    const d=snap.data();
-    if(d.stocks){
-      d.stocks.forEach((s,i)=>{ if(products[i]!=null) products[i].stock=s;});
+async function firstLoad(){
+const snap=await getDoc(inventoryRef);
+if(snap.exists()){
+const data=snap.data();
+if(data.stocks){
+data.stocks.forEach((s,i)=>{
+  if(products[i]) products[i].stock=s;
+});
+}
+historyLog=data.history||[];
+}else{
+await setDoc(inventoryRef,{
+stocks:products.map(p=>p.stock),
+history:[],
+updatedAt:serverTimestamp()
+});
+}
+draw();
+renderCart();
+}
+
+onSnapshot(inventoryRef,(snap)=>{
+if(!snap.exists()) return;
+syncing=true;
+const data=snap.data();
+if(data.stocks){
+data.stocks.forEach((s,i)=>products[i].stock=s);
+}
+historyLog=data.history||[];
+draw();
+renderCart();
+syncStatus.textContent="🟢 リアルタイム同期中";
+syncStatus.style.color="green";
+syncing=false;
+});
+
+function renderHistory(){
+historyDiv.innerHTML=historyLog.map((h,index)=>`
+<div style="padding:8px;border-bottom:1px solid #ddd">
+<b>${h.time}</b><br>
+${h.text}<br>
+<small>¥${h.total.toLocaleString()}</small>
+</div>`).join("");
+}
+
+function draw(){
+let sales=0;
+let sold=0;
+itemsDiv.innerHTML="";
+products.forEach((p,i)=>{
+const soldQty=p.initial-p.stock;
+sales+=soldQty*p.price;
+sold+=soldQty;
+itemsDiv.innerHTML+=`
+<div class="item">
+<div>
+<b>${p.name}</b><br>
+¥${p.price}
+</div>
+<div class="controls">
+<button class="pm" onclick="minus(${i})">−</button>
+<input value="${p.stock}" style="width:60px" onchange="setStock(${i},this.value)">
+<button class="pm" onclick="plus(${i})">＋</button>
+</div>
+</div>`;
+});
+document.getElementById("sales").textContent="¥"+sales.toLocaleString();
+document.getElementById("sold").textContent=sold+"個";
+renderHistory();
+}
+
+window.plus=async(i)=>{
+products[i].stock++;
+draw();
+await saveFirestore();
+};
+
+window.minus=async(i)=>{
+if(products[i].stock===0)return;
+products[i].stock--;
+draw();
+await saveFirestore();
+};
+
+window.setStock=async(i,val)=>{
+products[i].stock=Math.max(0,Number(val)||0);
+draw();
+await saveFirestore();
+};
+
+window.addCart=()=>{
+const index=Number(productSelect.value);
+const qty=Math.max(1,Number(document.getElementById("qty").value)||1);
+const p=products[index];
+cart.push({i:index,name:p.name,price:p.price,qty});
+renderCart();
+};
+
+function totalPrice(){
+return cart.reduce((sum,c)=>sum+c.price*c.qty,0);
+}
+
+function renderCart(){
+let html="";
+cart.forEach((c,index)=>{
+html+=`<div class="cartrow"><span>${c.name} × ${c.qty}</span><span>¥${(c.qty*c.price).toLocaleString()}</span></div>`;
+});
+cartView.innerHTML=html;
+document.getElementById("total").textContent="¥"+totalPrice().toLocaleString();
+calcChange();
+}
+
+window.addPaid=(v)=>{
+const paid=document.getElementById("paid");
+paid.value=(Number(paid.value)||0)+v;
+calcChange();
+};
+
+window.setTotalToPaid=()=>{
+document.getElementById("paid").value=totalPrice();
+calcChange();
+};
+
+window.calcChange=()=>{
+const paid=Number(document.getElementById("paid").value)||0;
+const change=paid-totalPrice();
+document.getElementById("change").textContent="¥"+change.toLocaleString();
+};
+
+fillProducts();
+await firstLoad();
+
+window.checkout = async () => {
+
+    if(cart.length===0){
+        alert("商品がありません");
+        return;
     }
-    window.historyLog = d.history || [];
+
+    const total = totalPrice();
+
+    const paid = Number(document.getElementById("paid").value)||0;
+
+    if(paid<total){
+        alert("お預かり金額が不足しています");
+        return;
+    }
+
+    lastSale = JSON.parse(JSON.stringify(cart));
+
+    cart.forEach(c=>{
+        products[c.i].stock=Math.max(0,products[c.i].stock-c.qty);
+    });
+
+    historyLog.unshift({
+        id:Date.now(),
+        time:new Date().toLocaleString("ja-JP"),
+        text:cart.map(c=>`${c.name} × ${c.qty}`).join(" / "),
+        total:total,
+        items:JSON.parse(JSON.stringify(cart))
+    });
+
+    cart=[];
+
+    document.getElementById("paid").value="";
+
     draw();
-  });
-}
+    renderCart();
+
+    await saveFirestore();
+
+};
+
+window.undoLastCheckout = async ()=>{
+
+    if(!lastSale){
+        alert("取り消せる会計がありません");
+        return;
+    }
+
+    lastSale.forEach(c=>{
+        products[c.i].stock += c.qty;
+    });
+
+    historyLog.unshift({
+        id:Date.now(),
+        time:new Date().toLocaleString("ja-JP"),
+        text:"会計取消",
+        total:0,
+        items:[]
+    });
+
+    lastSale=null;
+
+    draw();
+
+    await saveFirestore();
+
+};
+
+window.resetAll = async ()=>{
+
+    if(!confirm("在庫と履歴をすべてリセットしますか？")){
+        return;
+    }
+
+    products = JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
+
+    historyLog=[];
+
+    cart=[];
+
+    lastSale=null;
+
+    document.getElementById("paid").value="";
+
+    fillProducts();
+    draw();
+    renderCart();
+
+    await setDoc(inventoryRef,{
+        stocks:products.map(p=>p.stock),
+        history:[],
+        updatedAt:serverTimestamp()
+    });
+
+};
+
+window.clearCart = ()=>{
+    cart=[];
+    renderCart();
+};
+
+window.removeCartItem = (index)=>{
+    cart.splice(index,1);
+    renderCart();
+};
+
+const oldRenderCart = renderCart;
+
+renderCart = ()=>{
+
+    let html="";
+
+    cart.forEach((c,index)=>{
+        html += `
+        <div class="cartrow">
+            <span>${c.name} × ${c.qty}</span>
+            <span>
+                ¥${(c.qty*c.price).toLocaleString()}
+                <button onclick="removeCartItem(${index})">削除</button>
+            </span>
+        </div>`;
+    });
+
+    cartView.innerHTML = html;
+
+    document.getElementById("total").textContent =
+        "¥"+totalPrice().toLocaleString();
+
+    calcChange();
+
+};
+
+window.exportInventory = ()=>{
+
+    const data={
+        stocks:products.map(p=>({
+            name:p.name,
+            stock:p.stock
+        })),
+        history:historyLog
+    };
+
+    const blob=new Blob(
+        [JSON.stringify(data,null,2)],
+        {type:"application/json"}
+    );
+
+    const url=URL.createObjectURL(blob);
+
+    const a=document.createElement("a");
+    a.href=url;
+    a.download="aoimori_inventory_backup.json";
+    a.click();
+
+    URL.revokeObjectURL(url);
+
+};
+
+window.importInventory = async (event)=>{
+
+    const file=event.target.files[0];
+
+    if(!file) return;
+
+    const text=await file.text();
+
+    const data=JSON.parse(text);
+
+    if(data.stocks){
+        data.stocks.forEach((item,i)=>{
+            products[i].stock=item.stock;
+        });
+    }
+
+    historyLog=data.history||[];
+
+    draw();
+
+    await saveFirestore();
+
+};
+
+console.log("Firebase Ready");
+
+syncStatus.textContent="🟢 Firestore同期完了";
+
 </script>
-</body></html>
+
+</body>
+</html>
