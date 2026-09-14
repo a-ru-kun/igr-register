@@ -457,15 +457,6 @@ window.removeCartItem = (index)=>{
     renderCart();
 };
 
-    cartView.innerHTML = html;
-
-    document.getElementById("total").textContent =
-        "¥"+totalPrice().toLocaleString();
-
-    calcChange();
-
-};
-
 window.exportInventory = ()=>{
 
     const data={
