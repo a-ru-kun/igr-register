@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>青い森鉄道 在庫管理＋レジ（Firebase版）</title>
+<title>IGRいわて銀河鉄道 在庫管理＋レジ（Firebase版）</title>
 
 <style>
 body{
@@ -78,7 +78,7 @@ input,select{
 <div class="container">
 
 <div class="card">
-<h2>🚆 青い森鉄道 物販在庫管理＋レジ</h2>
+<h2>🚆 IGR鉄道いわて銀河鉄道 物販在庫管理＋レジ</h2>
 <div class="small" id="syncStatus">Firebase接続中...</div>
 </div>
 
@@ -161,22 +161,18 @@ measurementId:"G-NEKXZ89X05"
 
 const app=initializeApp(firebaseConfig);
 const db=getFirestore(app);
-const inventoryRef=doc(db,"aoimori","inventory");
+const inventoryRef=doc(db,"igr","inventory");
 
-const DEFAULT_PRODUCTS=[
-["青い森クリアファイル",270,150],
-["モーリークリアファイル",270,150],
-["オリジナルボールペン",290,150],
-["703系ラバーキーホルダー",800,60],
-["701系ピンズバッジ",350,60],
-["703系ピンズバッジ",350,60],
-["モーリーピンズバッジ",350,60],
-["青い森鉄道オリジナルバッグ",300,150],
-["モーリーオリジナルシール",400,60],
-["青い森701系巾着袋",600,40],
-["寝そべりモーリーぬいぐるみ",1760,10],
-["すやすやモーリーぬいぐるみ",1760,10],
-["モーリーラバーコースター",500,100]
+const DEFAULT_PRODUCTS = [
+  ["？？？", 400, 40],
+  ["ぎん★きらメモ帳", 200, 10],
+  ["ウシレチクリアファイル", 300, 30],
+  ["星と電車のクリアファイル", 300, 30],
+  ["IGRラバーキーホルダー", 800, 20],
+  ["車籍銘板キーホルダー", 1200, 11],
+  ["☆ぎんきら☆てのひらマスコット", 400, 10],
+  ["☆ぎんきら☆ぬってMYバッグ", 400, 10],
+  ["☆ぎんきら☆ラバーパスケース", 1980, 10]
 ].map(([name,price,stock])=>({name,price,stock,initial:stock}));
 
 let products=JSON.parse(JSON.stringify(DEFAULT_PRODUCTS));
