@@ -449,23 +449,6 @@ window.removeCartItem = (index)=>{
     renderCart();
 };
 
-const oldRenderCart = renderCart;
-
-renderCart = ()=>{
-
-    let html="";
-
-    cart.forEach((c,index)=>{
-        html += `
-        <div class="cartrow">
-            <span>${c.name} × ${c.qty}</span>
-            <span>
-                ¥${(c.qty*c.price).toLocaleString()}
-                <button onclick="removeCartItem(${index})">削除</button>
-            </span>
-        </div>`;
-    });
-
     cartView.innerHTML = html;
 
     document.getElementById("total").textContent =
